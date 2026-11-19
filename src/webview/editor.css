@@ -1,0 +1,69 @@
+html,
+body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background: var(--vscode-editor-background);
+}
+
+#editor {
+  height: 100vh;
+}
+
+/* VS Code 테마 색과 어울리도록 에디터 배경/테두리를 맞춘다 */
+.toastui-editor-defaultUI {
+  border: none !important;
+  border-radius: 0 !important;
+}
+
+.toastui-editor-defaultUI .toastui-editor-main,
+.toastui-editor-defaultUI .ProseMirror,
+.toastui-editor-defaultUI .toastui-editor-ww-container,
+.toastui-editor-defaultUI .toastui-editor-md-container,
+.toastui-editor-defaultUI .toastui-editor-md-preview {
+  background: var(--vscode-editor-background) !important;
+}
+
+.toastui-editor-contents,
+.toastui-editor-defaultUI .ProseMirror {
+  font-family: var(--vscode-markdown-font-family, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Malgun Gothic', sans-serif);
+  font-size: 14px;
+  color: var(--vscode-editor-foreground);
+}
+
+/* 열 폭을 고정(table-layout: fixed)하므로 폭보다 긴 단어는 셀 안에서 줄바꿈한다 */
+.toastui-editor-contents table th,
+.toastui-editor-contents table td {
+  overflow-wrap: anywhere;
+}
+
+/* 열 경계 드래그 */
+body.col-resize-hover,
+body.col-resize-hover *,
+body.col-resizing,
+body.col-resizing * {
+  cursor: col-resize !important;
+}
+body.col-resizing,
+body.col-resizing * {
+  user-select: none !important;
+}
+
+.toastui-editor-contents img {
+  max-width: 100%;
+}
+
+/*
+ * 표 선: diff 화면과 같은 색.
+ * Toast 기본값(밝은 테마 rgba(0,0,0,0.1), 어두운 테마 #303238)은 흐릿해서 칸 구분이 잘 안 되므로,
+ * 글자색을 섞어 밝은/어두운 테마 모두에서 또렷하게 보이게 한다 (WYSIWYG 와 마크다운 모드 미리보기 모두)
+ */
+:root {
+  --table-border: color-mix(in srgb, var(--vscode-editor-foreground, #888) 40%, transparent);
+}
+.toastui-editor-defaultUI .toastui-editor-contents table,
+.toastui-editor-defaultUI .toastui-editor-contents table th,
+.toastui-editor-defaultUI .toastui-editor-contents table td {
+  border-color: var(--table-border);
+}

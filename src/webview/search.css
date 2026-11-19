@@ -1,0 +1,99 @@
+/* ---------------------------------------------------------------------------
+   에디터/Diff 안 검색 바 (Ctrl+F / Cmd+F)
+--------------------------------------------------------------------------- */
+.mpe-search-bar {
+  position: fixed;
+  top: 8px;
+  right: 20px;
+  z-index: 1000;
+  display: none;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 6px;
+  border: 1px solid var(--vscode-widget-border, var(--vscode-editorWidget-border, rgba(128, 128, 128, 0.35)));
+  border-radius: 4px;
+  background: var(--vscode-editorWidget-background, var(--vscode-editor-background));
+  color: var(--vscode-editorWidget-foreground, var(--vscode-editor-foreground));
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+  font-family: var(--vscode-font-family, sans-serif);
+  font-size: 12px;
+}
+
+.mpe-search-bar.mpe-search-open {
+  display: flex;
+}
+
+.mpe-search-input {
+  width: 180px;
+  padding: 3px 6px;
+  border: 1px solid var(--vscode-input-border, transparent);
+  border-radius: 2px;
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  font-size: 12px;
+  outline: none;
+}
+
+.mpe-search-input:focus {
+  border-color: var(--vscode-focusBorder);
+}
+
+.mpe-search-input.mpe-search-nohit {
+  outline: 1px solid var(--vscode-inputValidation-errorBorder, #f44);
+}
+
+.mpe-search-count {
+  min-width: 42px;
+  text-align: center;
+  color: var(--vscode-descriptionForeground, var(--vscode-editor-foreground));
+  opacity: 0.85;
+}
+
+.mpe-search-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 4px;
+  border: none;
+  border-radius: 3px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.mpe-search-btn:hover {
+  background: var(--vscode-toolbar-hoverBackground, rgba(128, 128, 128, 0.2));
+}
+
+.mpe-search-btn-on {
+  background: var(--vscode-inputOption-activeBackground, rgba(14, 99, 156, 0.5));
+  color: var(--vscode-inputOption-activeForeground, inherit);
+  outline: 1px solid var(--vscode-inputOption-activeBorder, transparent);
+}
+
+/* 검색 일치 하이라이트: CSS Custom Highlight API (ProseMirror DOM을 건드리지 않음) */
+::highlight(mpe-search) {
+  background-color: var(--vscode-editor-findMatchHighlightBackground, rgba(234, 92, 0, 0.33));
+  color: var(--vscode-editor-foreground);
+}
+
+::highlight(mpe-search-active) {
+  background-color: var(--vscode-editor-findMatchBackground, rgba(234, 92, 0, 0.66));
+  color: var(--vscode-editor-foreground);
+}
+
+/* 대체 모드: <mark> 래핑 (Custom Highlight API 미지원 환경) */
+.mpe-search-hit {
+  background: var(--vscode-editor-findMatchHighlightBackground, rgba(234, 92, 0, 0.33));
+  color: inherit;
+  border-radius: 2px;
+}
+
+.mpe-search-active-mark {
+  background: var(--vscode-editor-findMatchBackground, rgba(234, 92, 0, 0.66));
+  outline: 1px solid var(--vscode-editor-findMatchBorder, transparent);
+}

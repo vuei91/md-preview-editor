@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <link rel="stylesheet" href="../../dist/webview/toastui-editor.css">
+  <link rel="stylesheet" href="../../dist/webview/toastui-editor-dark.css">
+  <link rel="stylesheet" href="../../dist/webview/editor.css">
+  <script>
+    // VS Code webview API 흉내: 보낸 메시지를 window.__sent 에 쌓는다
+    window.__sent = [];
+    window.acquireVsCodeApi = () => ({ postMessage: (m) => window.__sent.push(m), getState: () => undefined, setState: () => {} });
+  </script>
+</head>
+<body class="vscode-light">
+  <div id="editor"></div>
+  <script src="../../dist/webview/editor.js"></script>
+</body>
+</html>

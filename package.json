@@ -1,0 +1,201 @@
+{
+  "name": "md-preview-editor",
+  "displayName": "Markdown Preview Editor",
+  "description": "Markdown 미리보기에서 바로 편집하고, 렌더링된 상태로 diff를 비교하는 확장",
+  "version": "0.5.22",
+  "publisher": "local",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "markdown",
+    "preview",
+    "wysiwyg",
+    "diff"
+  ],
+  "main": "./dist/extension.js",
+  "activationEvents": [],
+  "contributes": {
+    "customEditors": [
+      {
+        "viewType": "mdPreviewEditor.editor",
+        "displayName": "Markdown Preview Editor (편집 가능한 미리보기)",
+        "selector": [
+          {
+            "filenamePattern": "*.md"
+          },
+          {
+            "filenamePattern": "*.markdown"
+          }
+        ],
+        "priority": "option"
+      }
+    ],
+    "commands": [
+      {
+        "command": "mdPreviewEditor.open",
+        "title": "편집 가능한 미리보기로 열기",
+        "category": "MD Preview",
+        "icon": "$(open-preview)"
+      },
+      {
+        "command": "mdPreviewEditor.openToSide",
+        "title": "편집 가능한 미리보기를 옆에 열기",
+        "category": "MD Preview",
+        "icon": "$(split-horizontal)"
+      },
+      {
+        "command": "mdPreviewEditor.openAsText",
+        "title": "텍스트 에디터로 열기",
+        "category": "MD Preview",
+        "icon": "$(go-to-file)"
+      },
+      {
+        "command": "mdPreviewEditor.diffWithHead",
+        "title": "미리보기 Diff: HEAD와 비교",
+        "category": "MD Preview",
+        "icon": "$(git-compare)"
+      },
+      {
+        "command": "mdPreviewEditor.diffWithRevision",
+        "title": "미리보기 Diff: Git 리비전과 비교...",
+        "category": "MD Preview"
+      },
+      {
+        "command": "mdPreviewEditor.diffWithFile",
+        "title": "미리보기 Diff: 다른 파일과 비교...",
+        "category": "MD Preview"
+      },
+      {
+        "command": "mdPreviewEditor.diffSelected",
+        "title": "미리보기 Diff: 선택한 두 파일 비교",
+        "category": "MD Preview"
+      },
+      {
+        "command": "mdPreviewEditor.diffFromDiffEditor",
+        "title": "미리보기 Diff: 렌더링된 Diff로 보기",
+        "category": "MD Preview",
+        "icon": "$(open-preview)"
+      }
+    ],
+    "menus": {
+      "editor/title": [
+        {
+          "command": "mdPreviewEditor.open",
+          "when": "resourceLangId == markdown && !isInDiffEditor && activeCustomEditorId != 'mdPreviewEditor.editor'",
+          "group": "navigation"
+        },
+        {
+          "command": "mdPreviewEditor.diffFromDiffEditor",
+          "when": "isInDiffEditor && resourceLangId == markdown",
+          "group": "navigation"
+        },
+        {
+          "command": "mdPreviewEditor.diffWithHead",
+          "when": "activeCustomEditorId == 'mdPreviewEditor.editor'",
+          "group": "navigation@1"
+        },
+        {
+          "command": "mdPreviewEditor.openAsText",
+          "when": "activeCustomEditorId == 'mdPreviewEditor.editor'",
+          "group": "navigation@2"
+        },
+        {
+          "command": "mdPreviewEditor.diffWithRevision",
+          "when": "activeCustomEditorId == 'mdPreviewEditor.editor' || resourceLangId == markdown && !isInDiffEditor",
+          "group": "mdPreviewEditor@1"
+        },
+        {
+          "command": "mdPreviewEditor.diffWithFile",
+          "when": "activeCustomEditorId == 'mdPreviewEditor.editor' || resourceLangId == markdown && !isInDiffEditor",
+          "group": "mdPreviewEditor@2"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "mdPreviewEditor.open",
+          "when": "resourceExtname =~ /^\\.(md|markdown)$/i && !listMultiSelection",
+          "group": "navigation@20"
+        },
+        {
+          "command": "mdPreviewEditor.diffSelected",
+          "when": "resourceExtname =~ /^\\.(md|markdown)$/i && listMultiSelection",
+          "group": "3_compare@20"
+        },
+        {
+          "command": "mdPreviewEditor.diffWithHead",
+          "when": "resourceExtname =~ /^\\.(md|markdown)$/i && !listMultiSelection",
+          "group": "3_compare@21"
+        },
+        {
+          "command": "mdPreviewEditor.diffWithFile",
+          "when": "resourceExtname =~ /^\\.(md|markdown)$/i && !listMultiSelection",
+          "group": "3_compare@22"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "mdPreviewEditor.diffSelected",
+          "when": "false"
+        },
+        {
+          "command": "mdPreviewEditor.diffFromDiffEditor",
+          "when": "isInDiffEditor"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Markdown Preview Editor",
+      "properties": {
+        "mdPreviewEditor.editMode": {
+          "type": "string",
+          "enum": [
+            "wysiwyg",
+            "markdown"
+          ],
+          "enumDescriptions": [
+            "미리보기 화면에서 바로 편집",
+            "원문 + 미리보기 분할 편집"
+          ],
+          "default": "wysiwyg",
+          "description": "편집 가능한 미리보기를 열 때의 기본 모드"
+        },
+        "mdPreviewEditor.diff.defaultView": {
+          "type": "string",
+          "enum": [
+            "inline",
+            "sideBySide"
+          ],
+          "default": "inline",
+          "description": "미리보기 Diff의 기본 보기 방식"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "node esbuild.mjs",
+    "watch": "node esbuild.mjs --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "esbuild test/logic.test.ts --bundle --platform=node --outfile=dist-test/logic.test.js --log-level=warning && node dist-test/logic.test.js",
+    "package": "npm run typecheck && npm test && vsce package --allow-missing-repository --no-dependencies",
+    "vscode:prepublish": "node esbuild.mjs --production"
+  },
+  "dependencies": {
+    "@toast-ui/editor": "^3.2.2",
+    "diff": "^7.0.0",
+    "markdown-it": "^14.1.0"
+  },
+  "devDependencies": {
+    "@types/diff": "^6.0.0",
+    "@types/markdown-it": "^14.1.2",
+    "@types/node": "^20.17.6",
+    "@types/vscode": "1.85.0",
+    "@vscode/vsce": "^3.2.1",
+    "esbuild": "^0.24.0",
+    "typescript": "^5.6.3"
+  }
+}
