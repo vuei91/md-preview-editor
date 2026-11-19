@@ -3,7 +3,7 @@ import * as path from 'node:path';
 import { diffMarkdown } from './markdownDiff';
 import { BlockNotFoundError, BlockRef, currentBlockSource, insertBlockAfter, replaceBlock } from './blockEdit';
 import { documentLines, replaceMinimal, setDocumentLines } from './documentEdit';
-import { applyNormalizedEdit } from './preserveFormat';
+import { applyNormalizedEdit, referencesOf } from './preserveFormat';
 import { buildWebviewHtml, dirOf, localResourceRoots } from './webviewHtml';
 
 export interface DiffSide {
@@ -211,7 +211,9 @@ export class DiffPanel {
       if (msg.type === 'editBlock') {
         // 블록 안에서도 실제로 바뀐 줄만 반영해 원래 서식을 유지한다
         const current = currentBlockSource(lines, msg.block);
-        next = replaceBlock(lines, msg.block, applyNormalizedEdit(current, msg.prevNorm, msg.nextNorm));
+        // 블록만 따로 렌더링해 비교하므로, 문서 전체의 참조형 링크 정의를 함께 넘긴다
+        const edited = applyNormalizedEdit(current, msg.prevNorm, msg.nextNorm, referencesOf(before));
+        next = replaceBlock(lines, msg.block, edited);
       } else if (msg.kind === 'added' && msg.block) {
         next = replaceBlock(lines, msg.block, '');
       } else if (msg.kind === 'modified' && msg.block && msg.oldSource !== undefined) {

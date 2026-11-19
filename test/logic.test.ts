@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { diffMarkdown, diffHtml } from '../src/markdownDiff';
-import { applyNormalizedEdit } from '../src/preserveFormat';
+import { applyNormalizedEdit, referencesOf } from '../src/preserveFormat';
 import { BlockNotFoundError, currentBlockSource, insertBlockAfter, replaceBlock } from '../src/blockEdit';
 import { linesAt, planWidths } from '../src/webview/tableWidths';
 
@@ -258,6 +258,92 @@ test('패치 결과의 렌더링이 다르면 정규화본 전체로 대체 (안
   const next = '첫 줄\n\n둘째 줄 수정';
   const out = applyNormalizedEdit(orig, prev, next);
   assert.equal(out, '첫 줄\n\n둘째 줄 수정\n');
+});
+
+test('새로 쓴 줄에서 렌더링에 영향 없는 이스케이프는 붙이지 않는다', () => {
+  const orig = '# 제목\n\n본문.\n';
+  const prev = '# 제목\n\n본문.';
+  // Toast UI 가 실제로 내보내는 형태
+  const next = prev + '\n\n경로는 C:\\\\Users\\\\me, snake\\_case, \\(괄호\\) \\[대괄호\\] 1\\.5배\\!';
+  assert.equal(applyNormalizedEdit(orig, prev, next), orig + '\n경로는 C:\\Users\\me, snake_case, (괄호) [대괄호] 1.5배!\n');
+});
+
+test('빼면 렌더링이 달라지는 이스케이프는 유지한다', () => {
+  const orig = '# 제목\n';
+  const prev = '# 제목';
+  const next = prev + '\n\n1\\. 리스트 아님\n\n\\# 헤딩 아님\n\n\\*\\*굵게 아님\\*\\* 그리고 \\<span> 태그 아님';
+  // 여는 ** 만 이스케이프돼 있으면 닫는 ** 는 그대로 글자다
+  assert.equal(applyNormalizedEdit(orig, prev, next), `${next.replace('아님\\*\\*', '아님**')}\n`);
+});
+
+test('줄 안에서 고친 부분의 이스케이프만 걷어내고, 원본의 이스케이프는 손대지 않는다', () => {
+  const orig = '원본 1\\.5 값\n';
+  const prev = '원본 1\\.5 값';
+  const next = '원본 1\\.5 값 \\(추가\\)';
+  assert.equal(applyNormalizedEdit(orig, prev, next), '원본 1\\.5 값 (추가)\n');
+});
+
+test('표 셀의 | 이스케이프는 유지한다', () => {
+  const orig = '| a | b |\n| --- | --- |\n| 1 | 2 |\n';
+  const prev = '| a | b |\n| --- | --- |\n| 1 | 2 |';
+  const next = prev + '\n| x\\|y \\(z\\) | 3 |';
+  assert.equal(applyNormalizedEdit(orig, prev, next), orig + '| x\\|y (z) | 3 |\n');
+});
+
+test('블록만 편집할 때: 문서의 참조형 링크 정의를 넘기면 \\[foo\\] 를 링크로 바꾸지 않는다', () => {
+  const block = '앞 문장\n';
+  const next = '앞 문장 \\[foo\\] \\(bar\\)';
+  // 정의가 없으면 블록 안에서는 그냥 글자라 걷어낸다
+  assert.equal(applyNormalizedEdit(block, '앞 문장', next), '앞 문장 [foo] (bar)\n');
+  const refs = referencesOf('# 문서\n\n앞 문장\n\n[foo]: https://example.com\n');
+  // 여는 [ 만 이스케이프돼 있어도 링크가 되지 않는다
+  assert.equal(applyNormalizedEdit(block, '앞 문장', next, refs), '앞 문장 \\[foo] (bar)\n');
+});
+
+test('markdown-it 이 모르는 GFM 문법이 되는 이스케이프는 유지한다 (취소선 ~, 작업 목록, 각주, 알림)', () => {
+  const orig = '# 제목\n';
+  const prev = '# 제목';
+  const next = [
+    prev,
+    '',
+    '\\~취소선 아님\\~ \\(a\\)',
+    '',
+    '- \\[ \\] 체크박스 아님 \\[링크\\]\\(x\\)',
+    '',
+    '> 1\\. x',
+    '',
+    '각주 아님\\[^1\\] 알림 아님 \\[!NOTE\\]',
+  ].join('\n');
+  const out = applyNormalizedEdit(orig, prev, next);
+  assert.ok(out.includes('\\~취소선 아님\\~ (a)'), out);
+  // 여는 [ 만 이스케이프돼 있으면 작업 목록이 되지 않는다
+  assert.ok(out.includes('- \\[ ] 체크박스 아님'), out);
+  assert.ok(out.includes('\\[^1') && out.includes('\\[!NOTE'), out);
+});
+
+test('참조형 링크가 있는 문서: 다른 줄을 고쳐도 문서 전체가 정규화되지 않고 정의 줄도 그대로', () => {
+  // 브라우저에서 확인한 실제 Toast UI 출력: 참조형 링크를 지원하지 않아 정의 줄을 글자로 보고 이스케이프한다
+  const orig = '__강조__ 참조 [foo] 링크.\n\n|  a  |  b  |\n|-----|-----|\n|  1  |  2  |\n\n편집할 문단.\n\n[foo]: https://example.com\n';
+  const prev = '**강조** 참조 [foo] 링크.\n\n| a | b |\n| --- | --- |\n| 1 | 2 |\n\n편집할 문단.\n\n\\[foo\\]: https://example\\.com';
+  const next = prev.replace('편집할 문단.', '편집할 문단 수정 (x).');
+  assert.equal(applyNormalizedEdit(orig, prev, next), orig.replace('편집할 문단.', '편집할 문단 수정 (x).'));
+});
+
+test('참조형 링크가 있는 문서: 참조를 쓰는 줄을 고쳐도 [foo] 는 그대로', () => {
+  const orig = '참조 [foo] 링크.\n\n[foo]: https://example.com\n';
+  const prev = '참조 [foo] 링크.\n\n\\[foo\\]: https://example\\.com';
+  const next = prev.replace('링크.', '링크 수정.');
+  assert.equal(applyNormalizedEdit(orig, prev, next), orig.replace('링크.', '링크 수정.'));
+});
+
+test('성능: 큰 문서 + 안전장치 경로에서도 빠르다', () => {
+  const para = (i: number) => `문단 ${i} 내용 snake\\_case \\(괄호\\) 1\\. 값 \\*별\\* C:\\\\dir`;
+  const big = Array.from({ length: 2000 }, (_, i) => para(i)).join('\n\n');
+  const t = Date.now();
+  applyNormalizedEdit('완전히 다른 원본\n', 'x', big);
+  const ms = Date.now() - t;
+  console.log(`    (2000문단 ${ms}ms)`);
+  assert.ok(ms < 3000);
 });
 
 console.log('blockEdit');
