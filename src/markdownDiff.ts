@@ -1,5 +1,5 @@
 import MarkdownIt from 'markdown-it';
-import { diffArrays } from 'diff';
+import { diffArrays, diffChars } from 'diff';
 
 type Token = ReturnType<MarkdownIt['parse']>[number];
 
@@ -114,13 +114,22 @@ function isWord(tok: string): boolean {
   return !isTag(tok) && tok.trim().length > 0;
 }
 
+/**
+ * 텍스트 덩어리를 ins/del 로 감싼다. 띄어쓰기만 바뀐 경우도 보이도록 공백만 있는 덩어리는 `ws` 클래스로 감싼다.
+ * 줄바꿈이 든 공백은 블록 태그 사이의 것이라 감싸지 않는다
+ */
+function wrapRun(run: string, wrapTag: 'ins' | 'del'): string {
+  if (run.trim()) return `<${wrapTag}>${run}</${wrapTag}>`;
+  if (!run || run.includes('\n')) return run;
+  return `<${wrapTag} class="ws">${run}</${wrapTag}>`;
+}
+
 /** 태그는 그대로 두고 텍스트 덩어리만 감싼다 */
 function wrapText(tokens: string[], wrapTag: 'ins' | 'del'): string {
   let out = '';
   let run = '';
   const flush = () => {
-    if (!run) return;
-    out += run.trim() ? `<${wrapTag}>${run}</${wrapTag}>` : run;
+    out += wrapRun(run, wrapTag);
     run = '';
   };
   for (const tok of tokens) {
@@ -137,8 +146,39 @@ function wrapText(tokens: string[], wrapTag: 'ins' | 'del'): string {
 
 /** 삭제/추가된 쪽의 태그는 버리고 텍스트만 남긴다 */
 function textOnly(tokens: string[], wrapTag: 'ins' | 'del'): string {
-  const text = tokens.filter((t) => !isTag(t)).join('');
-  return text.trim() ? `<${wrapTag}>${text}</${wrapTag}>` : text;
+  return wrapRun(tokens.filter((t) => !isTag(t)).join(''), wrapTag);
+}
+
+const stripSpace = (s: string) => s.replace(/\s+/g, '');
+
+/**
+ * 띄어쓰기만 다른 텍스트(`할수` → `할 수`)는 단어 전체 대신 바뀐 공백만 표시한다.
+ * 태그가 섞였거나 글자도 바뀌었으면 undefined
+ */
+function diffSpacing(removed: string[], added: string[]): { left: string; right: string; inline: string } | undefined {
+  if (removed.some(isTag) || added.some(isTag)) return undefined;
+  const a = removed.join('');
+  const b = added.join('');
+  if (stripSpace(a) !== stripSpace(b)) return undefined;
+  const parts = diffChars(a, b);
+  if (parts.some((p) => (p.added || p.removed) && p.value.trim())) return undefined;
+  let left = '';
+  let right = '';
+  let inline = '';
+  for (const p of parts) {
+    if (p.added) {
+      right += wrapRun(p.value, 'ins');
+      inline += wrapRun(p.value, 'ins');
+    } else if (p.removed) {
+      left += wrapRun(p.value, 'del');
+      inline += wrapRun(p.value, 'del');
+    } else {
+      left += p.value;
+      right += p.value;
+      inline += p.value;
+    }
+  }
+  return { left, right, inline };
 }
 
 interface HtmlDiff {
@@ -157,8 +197,35 @@ export function diffHtml(oldHtml: string, newHtml: string): HtmlDiff {
   let same = 0;
   let total = 0;
 
-  for (const part of parts) {
+  const changed = (p: (typeof parts)[number] | undefined) => !!p && (p.added || p.removed);
+  const isSpace = (p: (typeof parts)[number]) => p.value.every((t) => !isTag(t) && !t.trim());
+
+  for (let k = 0; k < parts.length; k++) {
+    const part = parts[k];
     const words = part.value.filter(isWord).length;
+
+    if (changed(part)) {
+      // 바뀐 구간 하나: 연속된 추가/삭제와, 그 사이에 낀 같은 공백까지 (`할수있다` → `할 수 있다` 는 공백 하나가 같다고 나뉜다)
+      let end = k + 1;
+      while (end < parts.length && (changed(parts[end]) || (isSpace(parts[end]) && changed(parts[end + 1])))) end++;
+      const region = parts.slice(k, end);
+      const spacing = diffSpacing(
+        region.filter((p) => !p.added).flatMap((p) => p.value),
+        region.filter((p) => !p.removed).flatMap((p) => p.value),
+      );
+      if (spacing) {
+        // 글자는 그대로이므로 같은 단어로 센다
+        const n = region.filter((p) => !p.added).reduce((s, p) => s + p.value.filter(isWord).length, 0);
+        same += n;
+        total += n * 2;
+        left += spacing.left;
+        right += spacing.right;
+        inline += spacing.inline;
+        k = end - 1;
+        continue;
+      }
+    }
+
     if (part.added) {
       total += words;
       right += wrapText(part.value, 'ins');

@@ -523,6 +523,11 @@ del {
   border-radius: 2px;
   box-shadow: 0 1px 0 var(--del-border);
 }
+/* 띄어쓰기만 바뀐 곳: 공백이 겹쳐도 접히지 않게 해 강조가 보이도록 한다 */
+ins.ws,
+del.ws {
+  white-space: pre-wrap;
+}
 
 /* 표 행 단위 diff */
 .md tr.tr-ins > td { background: var(--add-bg); }

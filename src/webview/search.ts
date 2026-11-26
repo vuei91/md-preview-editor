@@ -310,6 +310,7 @@ function buildBar(): void {
 
 /**
  * 검색 기능을 켠다. Ctrl+F / Cmd+F 로 검색 바가 열린다.
+ * Ctrl+Shift+F 등 다른 조합은 가로채지 않아야 VS Code 가 받아서 처리한다 (전체 검색 등).
  * @param roots 검색 대상 영역 셀렉터. 기본값은 편집기(WYSIWYG/미리보기) 영역.
  */
 export function setupSearch(roots: string[] = DEFAULT_ROOTS): void {
@@ -317,7 +318,9 @@ export function setupSearch(roots: string[] = DEFAULT_ROOTS): void {
   window.addEventListener(
     'keydown',
     (e) => {
-      if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === 'f') {
+      // 한글 입력 상태에서도 같은 키로 동작하도록 자판 위치(e.code)로 본다
+      const isF = e.code === 'KeyF' || e.key.toLowerCase() === 'f';
+      if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && isF) {
         e.preventDefault();
         e.stopPropagation();
         openBar();

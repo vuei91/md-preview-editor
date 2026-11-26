@@ -2,7 +2,7 @@
   "name": "md-preview-editor",
   "displayName": "Markdown Preview Editor",
   "description": "Markdown 미리보기에서 바로 편집하고, 렌더링된 상태로 diff를 비교하는 확장",
-  "version": "0.5.26",
+  "version": "0.5.28",
   "publisher": "local",
   "license": "MIT",
   "engines": {
@@ -187,7 +187,8 @@
   "dependencies": {
     "@toast-ui/editor": "^3.2.2",
     "diff": "^7.0.0",
-    "markdown-it": "^14.1.0"
+    "markdown-it": "^14.1.0",
+    "prosemirror-history": "^1.5.1"
   },
   "devDependencies": {
     "@types/diff": "^6.0.0",

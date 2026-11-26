@@ -134,6 +134,42 @@ test('HTML 엔티티는 쪼개지지 않는다', () => {
   assert.doesNotMatch(d.inline, /&<|amp<\/?(ins|del)/);
 });
 
+test('띄어쓰기만 추가/삭제해도 바뀐 공백을 강조한다', () => {
+  const add = diffMarkdown('문장입니다.다음 문장\n', '문장입니다. 다음 문장\n');
+  assert.equal(add.stats.modified, 1);
+  const row = add.rows[0];
+  assert.match(row.right, /입니다\.<ins class="ws"> <\/ins>다음/);
+  assert.match(row.inline, /<ins class="ws"> <\/ins>/);
+  assert.doesNotMatch(row.left, /<ins|<del/);
+
+  const del = diffMarkdown('foo, bar\n', 'foo,bar\n').rows[0];
+  assert.match(del.left, /foo,<del class="ws"> <\/del>bar/);
+  assert.match(del.inline, /foo,<del class="ws"> <\/del>bar/);
+  assert.doesNotMatch(del.right, /<ins|<del/);
+});
+
+test('띄어쓰기 교정(할수 → 할 수)은 단어 전체가 아니라 공백만 강조한다', () => {
+  const row = diffMarkdown('그렇게 할수있다고 했다.\n', '그렇게 할 수 있다고 했다.\n').rows[0];
+  assert.equal(row.kind, 'modified');
+  assert.equal(row.right, '<p>그렇게 할<ins class="ws"> </ins>수<ins class="ws"> </ins>있다고 했다.</p>\n');
+  assert.equal(row.left, '<p>그렇게 할수있다고 했다.</p>\n');
+  // 글자도 바뀌면 지금처럼 단어 단위
+  const mixed = diffMarkdown('그렇게 할수있다고 분명히 말했다.\n', '그렇게 할 수 없다고 분명히 말했다.\n').rows[0];
+  assert.equal(mixed.kind, 'modified');
+  assert.match(mixed.right, /<ins>[^<]*없다고[^<]*<\/ins>/);
+  assert.doesNotMatch(mixed.right, /class="ws"/);
+});
+
+test('표 셀의 띄어쓰기 변경도 강조한다', () => {
+  const r = diffMarkdown('| a | b |\n|---|---|\n| 가나 | x |\n', '| a | b |\n|---|---|\n| 가 나 | x |\n');
+  assert.match(r.rows[0].right, /tr-mod[^>]*>[\s\S]*가<ins class="ws"> <\/ins>나/);
+});
+
+test('블록 사이 줄바꿈은 감싸지 않는다', () => {
+  const r = diffMarkdown('- a\n- b\n', '- a\n- b\n- c\n').rows[0];
+  assert.doesNotMatch(r.right, /<ins class="ws">\n/);
+});
+
 test('CRLF 문서', () => {
   const r = diffMarkdown('# A\r\n\r\nB\r\n', '# A\n\nB\n');
   assert.deepEqual(r.stats, { added: 0, removed: 0, modified: 0 });
@@ -251,13 +287,167 @@ test('CRLF 원본도 패치된다', () => {
   assert.equal(out, original.replace('마지막 문단.', '끝.'));
 });
 
-test('패치 결과의 렌더링이 다르면 정규화본 전체로 대체 (안전장치)', () => {
-  // 원본과 정규화본이 의미적으로 다른 경우: 원본에만 있는 줄
+test('편집기가 직렬화하며 잃은 블록은 다른 곳을 고쳐도 원본 그대로 둔다', () => {
   const orig = '첫 줄\n\n원본에만 있는 숨은 줄\n\n둘째 줄\n';
   const prev = '첫 줄\n\n둘째 줄';
   const next = '첫 줄\n\n둘째 줄 수정';
-  const out = applyNormalizedEdit(orig, prev, next);
-  assert.equal(out, '첫 줄\n\n둘째 줄 수정\n');
+  assert.equal(applyNormalizedEdit(orig, prev, next), orig.replace('둘째 줄', '둘째 줄 수정'));
+});
+
+// 브라우저에서 확인한 실제 Toast UI 출력. HTML 블록, 엔티티, 줄 끝 공백 줄바꿈 등은 직렬화하며 내용을 잃는다
+const lossyOrig = [
+  '# 제목 ※ ① → ★',
+  '',
+  '* 항목 하나 **굵게** __밑줄굵게__ _기울임_',
+  '+ 다른 기호',
+  '1) 번호',
+  '',
+  '- [ ] 할 일',
+  '- [x] 완료',
+  '',
+  '| A | B |',
+  '|:--|--:|',
+  '| 1 | 2 |',
+  '',
+  'A &nbsp; B &lt;tag&gt; &copy; &rarr;',
+  '',
+  '줄바꿈  ',
+  '다음 줄<br>HTML',
+  '',
+  '***',
+  '',
+  '<div align="center">',
+  '  <b>센터</b>',
+  '</div>',
+  '',
+  '```js',
+  'const a = 1;',
+  '```',
+  '',
+  '    들여쓴 코드',
+  '',
+  'Setext 제목',
+  '===',
+  '',
+  '> 인용 > 기호',
+  '',
+  '[링크](http://a.com "타이틀") ![img](a.png) <http://auto.link>',
+  '',
+  '~~취소~~ ~한개~ `코드 *별*` 2 * 3 = 6, a_b_c, 100% #해시 [대괄호]',
+  '',
+  '각주[^1]',
+  '',
+  '[^1]: 설명',
+  '',
+].join('\n');
+const lossyPrev = [
+  '# 제목 ※ ① → ★',
+  '',
+  '* 항목 하나 **굵게** **밑줄굵게** *기울임*',
+  '',
+  '',
+  '* 다른 기호',
+  '',
+  '1. 번호',
+  '',
+  '* [ ] 할 일',
+  '* [x] 완료',
+  '',
+  '| A | B |',
+  '| :--- | ---: |',
+  '| 1 | 2 |',
+  '',
+  String.raw`A ${' '} B \<tag> © →`,
+  '',
+  '줄바꿈다음 줄',
+  'HTML',
+  '',
+  '***',
+  '',
+  '<b>센터</b>',
+  '',
+  '```js',
+  'const a = 1;',
+  '```',
+  '',
+  '```',
+  '들여쓴 코드',
+  '```',
+  '',
+  'Setext 제목',
+  '===',
+  '',
+  '> 인용 > 기호',
+  '',
+  '[링크](http://a.com "타이틀") ![img](a.png) [http://auto.link](http://auto.link)',
+  '',
+  String.raw`~~취소~~ \~한개\~ ` + '`코드 *별*`' + String.raw` 2 \* 3 = 6, a\_b\_c, 100% #해시 [대괄호]`,
+  '',
+  '각주[^1]',
+  '',
+  String.raw`\[^1\]: 설명`,
+].join('\n');
+
+test('내용을 잃는 문법이 있는 문서: 한 곳을 고쳐도 나머지 기호·서식은 그대로', () => {
+  const next = lossyPrev.replace('Setext 제목\n', 'Setext 제목X\n');
+  assert.equal(applyNormalizedEdit(lossyOrig, lossyPrev, next), lossyOrig.replace('Setext 제목\n', 'Setext 제목X\n'));
+  // 문단 안을 고친 경우도 그 줄만 바뀐다
+  const next2 = lossyPrev.replace('# 제목 ※', '# 큰 제목 ※');
+  assert.equal(applyNormalizedEdit(lossyOrig, lossyPrev, next2), lossyOrig.replace('# 제목 ※', '# 큰 제목 ※'));
+  // 리스트에 항목 추가
+  const next3 = lossyPrev.replace('* [x] 완료', '* [x] 완료\n* [ ] 새 일');
+  assert.equal(applyNormalizedEdit(lossyOrig, lossyPrev, next3), lossyOrig.replace('- [x] 완료', '- [x] 완료\n- [ ] 새 일'));
+});
+
+// 아래 prev/next 는 브라우저에서 확인한 실제 Toast UI 출력 (리스트는 항상 `*`, 항목 사이 빈 줄 없음)
+test('리스트 기호 `-` 가 `*` 로 바뀌지 않는다: 빈 줄로 띄운 리스트', () => {
+  const orig = '- 첫째 항목\n\n- 둘째 항목\n\n- 셋째 항목\n';
+  const prev = '* 첫째 항목\n* 둘째 항목\n* 셋째 항목';
+  assert.equal(applyNormalizedEdit(orig, prev, prev + 'X'), orig.replace('셋째 항목', '셋째 항목X'));
+  assert.equal(applyNormalizedEdit(orig, prev, prev.replace('첫째 항목', '첫째 항목X')), orig.replace('첫째 항목', '첫째 항목X'));
+  const added = applyNormalizedEdit(orig, prev, prev + '\n* 새 항목');
+  assert.ok(added.startsWith('- 첫째 항목\n\n- 둘째 항목\n\n- 셋째 항목'), added);
+  assert.ok(added.includes('- 새 항목'), added);
+  assert.doesNotMatch(added, /^\*/m);
+});
+
+test('리스트 기호 `-` 가 `*` 로 바뀌지 않는다: 줄 끝 공백 줄바꿈, &nbsp; 가 있는 리스트', () => {
+  const br = '- 첫째 항목  \n  이어지는 줄\n- 둘째 항목\n- 셋째 항목\n';
+  const brPrev = '* 첫째 항목이어지는 줄\n* 둘째 항목\n* 셋째 항목';
+  assert.equal(applyNormalizedEdit(br, brPrev, brPrev + 'X'), br.replace('셋째 항목', '셋째 항목X'));
+  assert.equal(applyNormalizedEdit(br, brPrev, brPrev + '\n* 새 항목'), br + '- 새 항목\n');
+  // 줄바꿈이 있는 항목 자체를 고치면 그 항목은 편집기 내용을 따르지만 기호는 `-`
+  assert.equal(
+    applyNormalizedEdit(br, brPrev, brPrev.replace('줄\n', '줄X\n')),
+    '- 첫째 항목이어지는 줄X\n- 둘째 항목\n- 셋째 항목\n',
+  );
+
+  const nbsp = '- 첫째 &nbsp; 항목\n- 둘째 항목\n- 셋째 항목\n';
+  const nbspPrev = '* 첫째   항목\n* 둘째 항목\n* 셋째 항목';
+  assert.equal(applyNormalizedEdit(nbsp, nbspPrev, nbspPrev + '\n* 새 항목'), nbsp + '- 새 항목\n');
+});
+
+test('나란히 있는 `*` 리스트와 `-` 리스트는 각자의 기호를 유지한다', () => {
+  const orig = '* 별 첫째\n* 별 둘째\n* 셋째 항목\n\n- 대시 첫째\n- 대시 둘째\n';
+  const prev = '* 별 첫째\n* 별 둘째\n* 셋째 항목\n\n\n* 대시 첫째\n* 대시 둘째';
+  const next = prev.replace('* 셋째 항목\n', '* 셋째 항목\n* 새 항목\n');
+  assert.equal(applyNormalizedEdit(orig, prev, next), orig.replace('* 셋째 항목\n', '* 셋째 항목\n* 새 항목\n'));
+});
+
+test('편집기가 다시 쓴 줄도 원본의 리스트 기호와 구분선 표기를 따른다 (안전장치 경로)', () => {
+  // 원본과 전혀 맞출 수 없어 정규화본 전체로 대체되는 경우
+  const orig = '- 하나\n- 둘\n\n---\n\n끝\n';
+  const out = applyNormalizedEdit(orig, 'x', '* 하나\n* 둘\n* 셋\n\n***\n\n끝\n\n```\n* 코드 안\n***\n```');
+  assert.equal(out, '- 하나\n- 둘\n- 셋\n\n---\n\n끝\n\n```\n* 코드 안\n***\n```\n');
+});
+
+test('내용을 잃는 블록 자체를 고치면 그 블록만 편집기 내용으로 바뀐다', () => {
+  const next = lossyPrev.replace('줄바꿈다음 줄', '줄바꿈다음 줄 수정');
+  const out = applyNormalizedEdit(lossyOrig, lossyPrev, next);
+  assert.ok(out.includes('줄바꿈다음 줄 수정\nHTML'), out);
+  for (const keep of ['__밑줄굵게__', '+ 다른 기호', '1) 번호', '&nbsp;', '&lt;tag&gt;', '<div align="center">', '<http://auto.link>', '[^1]: 설명']) {
+    assert.ok(out.includes(keep), `${keep} 유지\n${out}`);
+  }
 });
 
 test('새로 쓴 줄에서 렌더링에 영향 없는 이스케이프는 붙이지 않는다', () => {

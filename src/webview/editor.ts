@@ -1,5 +1,7 @@
 import Editor from '@toast-ui/editor';
 import '@toast-ui/editor/dist/i18n/ko-kr';
+import { closeHistory, undoDepth } from 'prosemirror-history';
+import type { EditorView } from 'prosemirror-view';
 import { MIN_COL, measureColumns, planWidths } from './tableWidths';
 import { setupSearch } from './search';
 
@@ -228,6 +230,59 @@ window.addEventListener(
 
 window.addEventListener('resize', () => scheduleLayout(100));
 
+// ---------------------------------------------------------------------------
+// 실행취소 / 다시실행
+//
+// - 편집기(ProseMirror)는 처음 불러온 내용과 외부 변경으로 다시 넣은 내용(setMarkdown)까지 실행취소 기록에 남겨,
+//   Ctrl+Z 를 계속 누르면 문서가 통째로 비거나 예전 내용으로 돌아간다. 그래서 불러온 시점을 기준선으로 두고
+//   그보다 앞으로는 되돌리지 않는다.
+// - 편집기가 Ctrl+Z 를 처리한 뒤 키 이벤트가 VS Code 까지 올라가면 VS Code 도 문서를 한 번 더 되돌린다.
+//   편집기보다 먼저(캡처 단계) 가로채 직접 실행하고 VS Code 로는 보내지 않는다.
+// ---------------------------------------------------------------------------
+
+/** 편집기 내부의 ProseMirror 뷰 (WYSIWYG, 마크다운) */
+function editorViews(): EditorView[] {
+  const e = editor as unknown as { wwEditor?: { view?: EditorView }; mdEditor?: { view?: EditorView } } | undefined;
+  return [e?.wwEditor?.view, e?.mdEditor?.view].filter((v): v is EditorView => !!v);
+}
+
+/** 뷰별 실행취소 기준선 (이 깊이 아래로는 되돌리지 않는다) */
+const undoBaseline = new WeakMap<EditorView, number>();
+
+/** 지금 내용을 실행취소 기준선으로 삼는다. 이후 입력이 불러온 내용과 한 묶음이 되지 않도록 기록도 끊는다 */
+function resetUndoBaseline(): void {
+  for (const view of editorViews()) {
+    view.dispatch(closeHistory(view.state.tr));
+    undoBaseline.set(view, undoDepth(view.state));
+  }
+}
+
+window.addEventListener(
+  'keydown',
+  (e) => {
+    const mod = e.ctrlKey || e.metaKey;
+    if (!mod || e.altKey || !editor) return;
+    // 한글 입력 상태에서도 같은 키로 동작하도록 자판 위치(e.code)로 본다
+    const undo = e.code === 'KeyZ' && !e.shiftKey;
+    const redo = (e.code === 'KeyZ' && e.shiftKey) || (e.code === 'KeyY' && !e.shiftKey);
+    if (!undo && !redo) return;
+    const target = e.target as HTMLElement | null;
+    // 검색창 같은 입력란은 그 입력란의 기본 실행취소를 쓴다 (VS Code 로 보내면 문서가 되돌려진다)
+    if (target?.closest?.('input, textarea')) {
+      e.stopPropagation();
+      return;
+    }
+    // 편집기 본문에 커서가 있을 때만. 코드 블록 편집 창 등 다른 ProseMirror 는 자체 처리에 맡긴다
+    const view = editorViews().find((v) => target?.closest?.('.ProseMirror') === v.dom);
+    if (!view) return;
+    e.preventDefault();
+    e.stopPropagation();
+    if (undo && undoDepth(view.state) <= (undoBaseline.get(view) ?? 0)) return;
+    editor.exec(undo ? 'undo' : 'redo');
+  },
+  true,
+);
+
 function create(msg: InitMessage): void {
   const el = document.getElementById('editor')!;
   editor = new Editor({
@@ -242,8 +297,13 @@ function create(msg: InitMessage): void {
     theme: isDark() ? 'dark' : undefined,
     events: { change: onChange },
   });
-  // 모드가 바뀌면 보이는 영역(WYSIWYG ↔ 마크다운 미리보기)이 달라지므로 열 폭을 다시 잰다
-  editor.on('changeMode', () => scheduleLayout(50));
+  // 모드가 바뀌면 보이는 영역(WYSIWYG ↔ 마크다운 미리보기)이 달라지므로 열 폭을 다시 잰다.
+  // 바뀐 쪽 편집기에는 내용을 통째로 다시 넣으므로 실행취소 기준선도 다시 잡는다
+  editor.on('changeMode', () => {
+    resetUndoBaseline();
+    scheduleLayout(50);
+  });
+  resetUndoBaseline();
   synced = editor.getMarkdown();
   syncId = msg.syncId;
   scheduleLayout(50);
@@ -262,6 +322,8 @@ function applyExternal({ text, syncId: id }: UpdateMessage): void {
     .filter((e) => e.scrollTop > 0)
     .map((e) => [e, e.scrollTop] as const);
   editor.setMarkdown(text, false);
+  // 외부 변경으로 바뀐 내용을 Ctrl+Z 로 통째로 되돌리지 않도록 (외부 변경은 그쪽 편집기에서 되돌린다)
+  resetUndoBaseline();
   synced = editor.getMarkdown();
   window.clearTimeout(timer);
   timer = undefined;
