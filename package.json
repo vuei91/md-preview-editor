@@ -2,7 +2,7 @@
   "name": "md-preview-editor",
   "displayName": "Markdown Preview Editor",
   "description": "Markdown 미리보기에서 바로 편집하고, 렌더링된 상태로 diff를 비교하는 확장",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "publisher": "vuei91",
   "license": "MIT",
   "icon": "images/icon.png",

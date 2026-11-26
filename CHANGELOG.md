@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.3
+
+- VS Code Marketplace 첫 배포 (GitHub Actions Trusted Publishing)
+
 ## 1.0.2
 
 - publisher ID 를 다시 `vuei91` 로 되돌림 (VS Code Marketplace 첫 배포). 확장 ID: `vuei91.md-preview-editor`
