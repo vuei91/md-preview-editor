@@ -1,4 +1,4 @@
-# Markdown Preview Editor
+# Markdown Preview Editor & Diff
 
 Markdown 파일을 **미리보기 상태에서 바로 편집**하고, **렌더링된 상태로 diff**를 비교하는 VS Code 확장입니다.
 

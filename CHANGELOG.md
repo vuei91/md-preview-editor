@@ -1,8 +1,12 @@
 # Changelog
 
+## 1.0.4
+
+- 확장 표시 이름을 `Markdown Preview Editor & Diff` 로 변경, VS Code Marketplace 첫 배포
+
 ## 1.0.3
 
-- VS Code Marketplace 첫 배포 (GitHub Actions Trusted Publishing)
+- GitHub Actions Trusted Publishing 으로 배포 설정 (VS Code Marketplace 는 표시 이름 중복으로 실패)
 
 ## 1.0.2
 
