@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.5
+
+- README 를 한국어 + 영어로 정리하고 사용 데모 GIF 추가
+- 마켓플레이스 설명·검색 키워드에 한국어 추가
+
 ## 1.0.4
 
 - 확장 표시 이름을 `Markdown Preview Editor & Diff` 로 변경, VS Code Marketplace 첫 배포

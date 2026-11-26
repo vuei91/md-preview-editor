@@ -1,8 +1,8 @@
 {
   "name": "md-preview-editor",
   "displayName": "Markdown Preview Editor & Diff",
-  "description": "Markdown 미리보기에서 바로 편집하고, 렌더링된 상태로 diff를 비교하는 확장",
-  "version": "1.0.4",
+  "description": "Markdown 미리보기에서 바로 편집하고, 렌더링된 상태로 diff 비교 · Edit Markdown in the rendered preview and compare rendered diffs",
+  "version": "1.0.5",
   "publisher": "vuei91",
   "license": "MIT",
   "icon": "images/icon.png",
@@ -31,7 +31,11 @@
     "wysiwyg",
     "diff",
     "editor",
-    "git"
+    "git",
+    "마크다운",
+    "미리보기",
+    "편집",
+    "비교"
   ],
   "main": "./dist/extension.js",
   "activationEvents": [],
