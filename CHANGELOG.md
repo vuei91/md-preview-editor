@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.1
+
+- publisher ID 를 `vuei91-tools` 로 변경 (VS Code Marketplace 첫 배포). 확장 ID: `vuei91-tools.md-preview-editor`
+
 ## 1.0.0
 
 - 첫 마켓플레이스 배포 (VS Code Marketplace, Open VSX)
