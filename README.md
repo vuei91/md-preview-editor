@@ -16,10 +16,7 @@ Markdown 파일을 **미리보기 상태에서 바로 편집**하고, **렌더�
   (안전하게 반영할 수 없는 경우에만 정규화된 전체 문서로 저장합니다.)
 - 항상 이 에디터로 열고 싶다면: 파일 탭 우클릭 → `Reopen Editor With...` → `Configure default editor for '*.md'`
 - **표 열 폭**: 셀 글자를 재서 표 전체 높이가 가장 낮아지도록 열 폭을 자동으로 맞춥니다(짧은 열은 좁게, 긴 열은 넓게).
-
-    ```
   폭이 남으면 열 폭 비율대로 나눠 표가 화면 폭을 꽉 채웁니다. 자동 맞춤이 브라우저 기본 배치보다 낫지 않으면 기본 배치를 그대로 씁니다. diff 화면의 표에도 같은 방식이 적용됩니다.
-    ```
 - **열 폭 드래그**: 표의 열 경계에 마우스를 올리면 커서가 바뀌고, 드래그로 폭을 조절할 수 있습니다. 경계를 더블클릭하면 자동 폭으로 돌아갑니다.
   조절한 폭은 Markdown 파일에는 저장되지 않고, 편집기 탭에서만 (같은 머리글의 표끼리) 기억됩니다.
 
@@ -52,7 +49,7 @@ Markdown 파일을 **미리보기 상태에서 바로 편집**하고, **렌더�
 | 되돌리기 | 수정 전·후 사이(inline 은 블록 오른쪽)의 화살표: 바뀐 블록은 원본으로, 추가된 블록은 제거, 삭제된 블록은 복원. 수정된 표는 행마다 화살표가 있습니다 |
 | 실행취소 / 다시실행 | diff 화면에서 적용한 편집·되돌리기를 Ctrl+Z / Ctrl+Shift+Z(또는 Ctrl+Y), 또는 상단 툴바 버튼으로 하나씩 되돌립니다 |
 | 저장 | 상단 `● 저장 안 됨` 옆 `저장` 버튼 또는 Ctrl+S |
-| 문서 전체 편집 | 상단 `편집기 열기` → 편집 가능한 미리보기가 옆에 열리고, 고치는 대로 diff 가 |
+| 문서 전체 편집 | 상단 `편집기 열기` → 편집 가능한 미리보기가 옆에 열리고, 고치는 대로 diff 가 갱신됩니다 |
 
 - 블록 편집도 실제로 바꾼 부분만 원본에 반영합니다(줄 안에서도 편집한 부분만 교체).
 - 저장하지 않은 채 diff 창을 닫으면 저장 여부를 묻습니다.
@@ -62,6 +59,13 @@ Markdown 파일을 **미리보기 상태에서 바로 편집**하고, **렌더�
 - 고칠 수 있는 쪽의 링크는 더블클릭하면 링크 글자를 편집하고, Ctrl+클릭하면 링크를 엽니다(VS Code 편집기와 같습니다).
 - 블록 편집 중 Ctrl+Z 는 편집기 안의 입력을 먼저 되돌리고, 고친 게 없으면 편집기를 닫고 diff 화면에서 적용한 변경을 되돌립니다.
 - 그 사이 다른 편집기에서 문서가 바뀌면 diff 화면의 실행취소 기록은 지워집니다(원문에서 Ctrl+Z 로 되돌릴 수 있습니다). diff 화면에서 적용한 변경도 문서의 실행취소 기록에 그대로 남습니다.
+
+## 설치
+
+- **VS Code**: 확장 뷰에서 `Markdown Preview Editor` 검색
+- **Cursor / Kiro / Windsurf / VSCodium**: 확장 뷰에서 검색 ([Open VSX](https://open-vsx.org/extension/vuei91/md-preview-editor))
+- **직접 설치**: [Releases](https://github.com/vuei91/md-preview-editor/releases)에서 `.vsix` 를 받아 확장 뷰 `...` 메뉴 → `Install from VSIX...`
+  (또는 `code --install-extension md-preview-editor-<버전>.vsix`)
 
 ## 설정
 
@@ -81,8 +85,26 @@ npm run package    # .vsix 생성
 
 VS Code 에서 이 폴더를 열고 `F5` 를 누르면 확장 개발 호스트에서 바로 실행됩니다.
 
-설치: `code --install-extension md-preview-editor-0.5.22.vsix`
-또는 확장 뷰 `...` 메뉴 → `Install from VSIX...`
+### 배포
+
+`package.json` 의 `version` 과 `CHANGELOG.md` 를 고쳐 커밋한 뒤, 같은 버전의 태그를 push 하면
+GitHub Actions([publish.yml](.github/workflows/publish.yml))가 VS Code Marketplace, Open VSX 에 배포하고 GitHub Release 를 만듭니다.
+(저장소 Secrets 의 `VSCE_PAT`, `OVSX_PAT` 를 사용합니다. 없는 토큰의 배포 단계는 건너뛰므로, 그때는 Release 에 첨부된 `.vsix` 를 직접 올립니다)
+
+```bash
+npm version 1.0.1 --no-git-tag-version   # 버전 올리기
+git commit -am "Release 1.0.1"
+git tag v1.0.1
+git push && git push --tags
+```
+
+수동 배포:
+
+```bash
+npm run package                          # 빌드 + 테스트 + .vsix 생성
+npx vsce publish --packagePath md-preview-editor-<버전>.vsix   # VS Code Marketplace (VSCE_PAT 필요)
+npx ovsx publish md-preview-editor-<버전>.vsix                 # Open VSX — Cursor, Kiro 등 (OVSX_PAT 필요)
+```
 
 ## 구조
 

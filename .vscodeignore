@@ -9,3 +9,6 @@ tsconfig.json
 *.vsix
 
 .playwright-mcp/**
+images/icon.svg
+.gitignore
+.github/**

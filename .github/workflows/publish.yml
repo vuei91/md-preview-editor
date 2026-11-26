@@ -1,0 +1,56 @@
+# v1.2.3 형태의 태그를 push 하면 VS Code Marketplace 와 Open VSX 에 배포하고 GitHub Release 를 만든다.
+# 저장소 Secrets: VSCE_PAT (VS Code Marketplace), OVSX_PAT (Open VSX). 없는 토큰의 배포 단계는 건너뛴다
+name: Publish
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    # 단계의 if 에서 읽을 수 있도록 job 수준에 둔다
+    env:
+      VSCE_PAT: ${{ secrets.VSCE_PAT }}
+      OVSX_PAT: ${{ secrets.OVSX_PAT }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: 태그와 package.json 버전 확인
+        run: |
+          PKG_VERSION="v$(node -p "require('./package.json').version")"
+          if [ "$PKG_VERSION" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::태그($GITHUB_REF_NAME)와 package.json 버전($PKG_VERSION)이 다릅니다"
+            exit 1
+          fi
+
+      - name: 패키징 (타입 검사 + 테스트 포함)
+        run: npm run package
+
+      # VSCE_PAT 가 없으면 건너뛴다 (Release 에 첨부된 .vsix 를 marketplace.visualstudio.com/manage 에 직접 업로드)
+      - name: VS Code Marketplace 배포
+        if: env.VSCE_PAT != ''
+        run: npx vsce publish --packagePath *.vsix
+
+      - name: Open VSX 배포 (Cursor, Kiro 등)
+        if: env.OVSX_PAT != ''
+        run: |
+          # 첫 배포라면 namespace(= publisher)를 만든다. 이미 있으면 실패해도 무시
+          npx ovsx create-namespace "$(node -p "require('./package.json').publisher")" || true
+          npx ovsx publish *.vsix
+
+      - name: GitHub Release 생성
+        run: gh release create "$GITHUB_REF_NAME" *.vsix --title "$GITHUB_REF_NAME" --notes "CHANGELOG.md 를 참고하세요."
+        env:
+          GH_TOKEN: ${{ github.token }}

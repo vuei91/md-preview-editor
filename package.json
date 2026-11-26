@@ -2,20 +2,36 @@
   "name": "md-preview-editor",
   "displayName": "Markdown Preview Editor",
   "description": "Markdown 미리보기에서 바로 편집하고, 렌더링된 상태로 diff를 비교하는 확장",
-  "version": "0.5.28",
-  "publisher": "local",
+  "version": "1.0.0",
+  "publisher": "vuei91",
   "license": "MIT",
+  "icon": "images/icon.png",
+  "galleryBanner": {
+    "color": "#2A4FB0",
+    "theme": "dark"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vuei91/md-preview-editor.git"
+  },
+  "bugs": {
+    "url": "https://github.com/vuei91/md-preview-editor/issues"
+  },
+  "homepage": "https://github.com/vuei91/md-preview-editor#readme",
   "engines": {
     "vscode": "^1.85.0"
   },
   "categories": [
+    "Visualization",
     "Other"
   ],
   "keywords": [
     "markdown",
     "preview",
     "wysiwyg",
-    "diff"
+    "diff",
+    "editor",
+    "git"
   ],
   "main": "./dist/extension.js",
   "activationEvents": [],
@@ -181,8 +197,10 @@
     "watch": "node esbuild.mjs --watch",
     "typecheck": "tsc --noEmit",
     "test": "esbuild test/logic.test.ts --bundle --platform=node --outfile=dist-test/logic.test.js --log-level=warning && node dist-test/logic.test.js",
-    "package": "npm run typecheck && npm test && vsce package --allow-missing-repository --no-dependencies",
-    "vscode:prepublish": "node esbuild.mjs --production"
+    "package": "npm run typecheck && npm test && vsce package --no-dependencies",
+    "vscode:prepublish": "node esbuild.mjs --production",
+    "publish:vsce": "vsce publish --no-dependencies",
+    "publish:ovsx": "ovsx publish --no-dependencies"
   },
   "dependencies": {
     "@toast-ui/editor": "^3.2.2",
@@ -197,6 +215,7 @@
     "@types/vscode": "1.85.0",
     "@vscode/vsce": "^3.2.1",
     "esbuild": "^0.24.0",
+    "ovsx": "^1.4.0",
     "typescript": "^5.6.3"
   }
 }
