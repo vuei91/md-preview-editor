@@ -63,7 +63,7 @@ Markdown 파일을 **미리보기 상태에서 바로 편집**하고, **렌더�
 ## 설치
 
 - **VS Code**: 확장 뷰에서 `Markdown Preview Editor` 검색
-- **Cursor / Kiro / Windsurf / VSCodium**: 확장 뷰에서 검색 ([Open VSX](https://open-vsx.org/extension/vuei91-tools/md-preview-editor))
+- **Cursor / Kiro / Windsurf / VSCodium**: 확장 뷰에서 검색 ([Open VSX](https://open-vsx.org/extension/vuei91/md-preview-editor))
 - **직접 설치**: [Releases](https://github.com/vuei91/md-preview-editor/releases)에서 `.vsix` 를 받아 확장 뷰 `...` 메뉴 → `Install from VSIX...`
   (또는 `code --install-extension md-preview-editor-<버전>.vsix`)
 
