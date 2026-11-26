@@ -1,14 +1,20 @@
-# v1.2.3 형태의 태그를 push 하면 VS Code Marketplace 와 Open VSX 에 배포하고 GitHub Release 를 만든다.
-# 저장소 Secrets: VSCE_PAT (VS Code Marketplace), OVSX_PAT (Open VSX). 없는 토큰의 배포 단계는 건너뛴다
+# v1.2.3 형태의 태그를 push 하면 GitHub Release 를 만들고 Open VSX, VS Code Marketplace 에 배포한다.
+# 다른 방법으로 이미 올린 버전으로 다시 실행하려면 Actions 탭 → Publish → Run workflow 에서 태그를 고른다.
+#
+# - VS Code Marketplace: Trusted Publishing(OIDC). marketplace.visualstudio.com/manage → publisher → Trusted Publishing 에
+#   이 저장소와 워크플로(publish.yml)를 등록해야 한다. 저장소 Secret VSCE_PAT 가 있으면 그것을 대신 쓴다.
+# - Open VSX: 저장소 Secret OVSX_PAT. 없으면 건너뛴다.
 name: Publish
 
 on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
 
 permissions:
   contents: write
+  id-token: write # VS Code Marketplace Trusted Publishing
 
 jobs:
   publish:
@@ -22,7 +28,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       - run: npm ci
@@ -38,18 +44,6 @@ jobs:
       - name: 패키징 (타입 검사 + 테스트 포함)
         run: npm run package
 
-      # VSCE_PAT 가 없으면 건너뛴다 (Release 에 첨부된 .vsix 를 marketplace.visualstudio.com/manage 에 직접 업로드)
-      - name: VS Code Marketplace 배포
-        if: env.VSCE_PAT != ''
-        run: npx vsce publish --packagePath *.vsix
-
-      - name: Open VSX 배포 (Cursor, Kiro 등)
-        if: env.OVSX_PAT != ''
-        run: |
-          # 첫 배포라면 namespace(= publisher)를 만든다. 이미 있으면 실패해도 무시
-          npx ovsx create-namespace "$(node -p "require('./package.json').publisher")" || true
-          npx ovsx publish *.vsix
-
       # 같은 태그로 다시 실행하면 기존 Release 의 .vsix 만 교체한다
       - name: GitHub Release 생성
         run: |
@@ -60,3 +54,19 @@ jobs:
           fi
         env:
           GH_TOKEN: ${{ github.token }}
+
+      # 이미 올라간 버전이면 성공으로 넘어간다 (--skip-duplicate)
+      - name: Open VSX 배포 (Cursor, Kiro 등)
+        if: env.OVSX_PAT != ''
+        run: |
+          # 첫 배포라면 namespace(= publisher)를 만든다. 이미 있으면 실패해도 무시
+          npx ovsx create-namespace "$(node -p "require('./package.json').publisher")" || true
+          npx ovsx publish *.vsix --skip-duplicate
+
+      - name: VS Code Marketplace 배포
+        run: |
+          if [ -n "$VSCE_PAT" ]; then
+            npx vsce publish --packagePath *.vsix --skip-duplicate
+          else
+            npx vsce publish --packagePath *.vsix --skip-duplicate --oidc
+          fi
