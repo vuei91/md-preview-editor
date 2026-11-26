@@ -50,7 +50,13 @@ jobs:
           npx ovsx create-namespace "$(node -p "require('./package.json').publisher")" || true
           npx ovsx publish *.vsix
 
+      # 같은 태그로 다시 실행하면 기존 Release 의 .vsix 만 교체한다
       - name: GitHub Release 생성
-        run: gh release create "$GITHUB_REF_NAME" *.vsix --title "$GITHUB_REF_NAME" --notes "CHANGELOG.md 를 참고하세요."
+        run: |
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" *.vsix --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" *.vsix --title "$GITHUB_REF_NAME" --notes "CHANGELOG.md 를 참고하세요."
+          fi
         env:
           GH_TOKEN: ${{ github.token }}
